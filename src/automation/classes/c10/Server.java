@@ -22,6 +22,8 @@ public class Server {
     private static final String HOST = "127.0.0.1";
     private static final int PORT = 8000;
 
+    private static final Set<String> badWords = (new CsvFileReader(PropertyUtil.getValueByKey("badWord_path"))).read();
+
 
     public static void main(String[] args) {
         LOGGER.info(String.format("Listening on %s:%d", HOST, PORT));
