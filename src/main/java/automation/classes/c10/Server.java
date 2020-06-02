@@ -4,6 +4,12 @@ import automation.classes.c10.bo.ConnectMessage;
 import automation.classes.c10.bo.HistoryMessage;
 import automation.classes.c10.bo.ResponseMessage;
 import automation.constant.TimeConstant;
+import automation.filters.Filter;
+import automation.filters.FilterList;
+import automation.filters.impl.BadWordFilter;
+import automation.filters.impl.NameFilter;
+import automation.filters.impl.SentenceFilter;
+import automation.filters.impl.SpaceFilter;
 import automation.io.exception.UnableToReadException;
 import automation.io.impl.file.StreamTextFileReader;
 import automation.io.interfaces.Packable;
@@ -31,20 +37,11 @@ public class Server {
 
     private static String historyPath;
 
-    private static Set<String> badWords;
+    private static FilterList fls;
 
     static {
         BasicConfigurator.configure();
-        badWords = new HashSet<String>();
-        try {
-            String[] strArr = (new StreamTextFileReader(System.getProperty("user.dir") + PropertyUtil.getValueByKey("badWord_path"))).read().split(",");
-            for(String el : strArr) {
-                badWords.add(el);
-            }
-            logger.info("BadWord list loaded");
-        } catch (UnableToReadException ex) {
-            logger.error(ex.getMessage());
-        }
+
         String storyPath =  PropertyUtil.getValueByKey("chatHistory_path");
         historyPath =  System.getProperty("user.dir") + storyPath;
         Path p = Paths.get(historyPath);
@@ -55,6 +52,12 @@ public class Server {
         } catch (IOException e) {
             logger.error(e.getMessage());
         }
+
+        fls = new FilterList();
+        fls.add(new SpaceFilter("Spaces",logger));
+        fls.add(new SentenceFilter("Sentences",logger));
+        fls.add(new BadWordFilter(PropertyUtil.getValueByKey("badWord"), logger));
+        fls.add(new NameFilter(PropertyUtil.getValueByKey("names"), logger));
     }
 
 
@@ -69,18 +72,6 @@ public class Server {
                 e.printStackTrace();
             }
         }
-    }
-
-    private static String formatMsg(String msg) {
-        String[] returnMsg = msg.split(" ");
-
-        int length = returnMsg.length;
-        for (int i = 0; i < length; i++) {
-            if(badWords.contains(returnMsg[i].toUpperCase())) {
-                returnMsg[i] = "***";
-            }
-        }
-        return String.join(" ", returnMsg);
     }
 
     private static List<String> getHistory() {
@@ -110,7 +101,9 @@ public class Server {
             Packable resp;
             if (msg.getHost().equals(HOST) && msg.getPort() == PORT && AVAILABLE_CLIENTS.contains(msg.getToken())) {
                 if (msg.getType().equals("message")) {
-                    String mess = formatMsg(msg.getMessage());
+//                    String mess = formatMsg(msg.getMessage());
+                    String mess = msg.getMessage();
+                    mess = fls.formatString(mess);
                     mess = EmojiParser.parseToUnicode(mess);
                     try (FileWriter fw = new FileWriter(historyPath, true)) {
                         fw.write("\n" + mess);
