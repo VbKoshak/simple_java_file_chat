@@ -11,14 +11,19 @@ import automation.util.PropertyUtil;
 import automation.util.SerializationUtil;
 
 import java.io.*;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
-import java.util.logging.Logger;
+
+import com.vdurmont.emoji.EmojiParser;
+import org.apache.log4j.BasicConfigurator;
+import org.apache.log4j.Logger;
+
 
 public class Server {
-    private static final Logger LOGGER = Logger.getLogger(Server.class.getSimpleName());
+    private static final Logger logger = Logger.getLogger(Server.class.getSimpleName());
 
     private static final List<String> AVAILABLE_CLIENTS = Arrays.asList("user","admin");
     private static final String HOST = "127.0.0.1";
@@ -29,29 +34,32 @@ public class Server {
     private static Set<String> badWords;
 
     static {
+        BasicConfigurator.configure();
         badWords = new HashSet<String>();
         try {
             String[] strArr = (new StreamTextFileReader(System.getProperty("user.dir") + PropertyUtil.getValueByKey("badWord_path"))).read().split(",");
             for(String el : strArr) {
                 badWords.add(el);
             }
-            LOGGER.info("BadWord list loaded");
+            logger.info("BadWord list loaded");
         } catch (UnableToReadException ex) {
-            System.out.println(ex.getMessage());
+            logger.error(ex.getMessage());
         }
         String storyPath =  PropertyUtil.getValueByKey("chatHistory_path");
         historyPath =  System.getProperty("user.dir") + storyPath;
         Path p = Paths.get(historyPath);
         try {
             Files.createFile(p);
+        } catch (FileAlreadyExistsException e) {
+            logger.info("Loading history");
         } catch (IOException e) {
-            //e.printStackTrace();
+            logger.error(e.getMessage());
         }
     }
 
 
     public static void main(String[] args) {
-        LOGGER.info(String.format("Listening on %s:%d", HOST, PORT));
+        logger.info(String.format("Listening on %s:%d", HOST, PORT));
 
         while (true) {
             try {
@@ -87,9 +95,9 @@ public class Server {
                 line = reader.readLine();
             }
         } catch (FileNotFoundException e) {
-            System.out.println(e.getMessage());
+            logger.error(e.getMessage());
         } catch (IOException e) {
-            System.out.println(e.getMessage());
+            logger.error(e.getMessage());
         }
         return resp;
     }
@@ -103,12 +111,13 @@ public class Server {
             if (msg.getHost().equals(HOST) && msg.getPort() == PORT && AVAILABLE_CLIENTS.contains(msg.getToken())) {
                 if (msg.getType().equals("message")) {
                     String mess = formatMsg(msg.getMessage());
+                    mess = EmojiParser.parseToUnicode(mess);
                     try (FileWriter fw = new FileWriter(historyPath, true)) {
                         fw.write("\n" + mess);
                     } catch (IOException ex) {
-                        System.out.println(ex.getMessage());
+                        logger.error(ex.getMessage());
                     }
-                    LOGGER.info(mess);
+                    logger.info(mess);
                     resp = new ResponseMessage(HOST, PORT, "", "SUCCESS", 200);
                 } else if (msg.getType().equals("history")) {
                     List<String> hstry = getHistory();
@@ -138,7 +147,7 @@ public class Server {
             pwOb.close();
             fwOb.close();
         } catch (IOException ex) {
-            System.out.println(ex.getMessage());
+            logger.error(ex.getMessage());
         }
     }
 

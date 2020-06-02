@@ -3,17 +3,22 @@ package automation.classes.c10;
 import automation.classes.c10.bo.ConnectMessage;
 import automation.classes.c10.bo.HistoryMessage;
 import automation.classes.c10.bo.ResponseMessage;
-import automation.constant.C10Constant;
-import automation.constant.TimeConstant;
 import automation.io.interfaces.Packable;
 import automation.util.PropertyUtil;
 import automation.util.SerializationUtil;
 
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Scanner;
+
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
+import org.apache.log4j.BasicConfigurator;
 
 /**
  * 1. object streams
@@ -25,12 +30,24 @@ import java.util.Scanner;
  */
 public class Client {
     private static int clientCount = 0;
+    private static final Logger logger = Logger.getLogger(Server.class.getSimpleName());
     private String responsePath;
     private String host;
     private int port;
     private String token;
     private boolean canConnect = false;
 
+    private void clearResponse(){
+        try {
+            FileWriter fwOb = new FileWriter(System.getProperty("user.dir") + this.responsePath, false);
+            PrintWriter pwOb = new PrintWriter(fwOb, false);
+            pwOb.flush();
+            pwOb.close();
+            fwOb.close();
+        } catch (IOException ex) {
+            System.out.println(ex.getMessage());
+        }
+    }
 
     public Client(String host, int port, String token) {
         this.host = host;
@@ -40,10 +57,13 @@ public class Client {
         this.responsePath =  PropertyUtil.getValueByKey("client_path") + clientCount;
         String path =  System.getProperty("user.dir") + this.responsePath;
         Path p = Paths.get(path);
+        BasicConfigurator.configure();
         try {
             Files.createFile(p);
+        } catch (FileAlreadyExistsException e) {
+            System.out.println("Welcome Back!");
         } catch (IOException e) {
-            //e.printStackTrace();
+            logger.error(e.getMessage());
         } finally {
             canConnect = true;
         }
@@ -65,10 +85,8 @@ public class Client {
                 } else {
                     responseMsg = (((ResponseMessage) getResponse()).getResp());
                 }
-            }catch (InterruptedException ex) {
-                ex.printStackTrace();
             } catch (Exception ex) {
-                System.out.println(ex.getMessage());
+               logger.error(ex.getMessage());
             }
         }
         return responseMsg;
@@ -85,7 +103,8 @@ public class Client {
     }
 
     private Packable getResponse() {
-        return SerializationUtil.readObject(this.responsePath);
+        Packable ans = SerializationUtil.readObject(this.responsePath);
+        return ans;
     }
 
     public static void main(String[] args) {
@@ -104,5 +123,6 @@ public class Client {
         do {
             resp = cl.sendMessage();
         } while(!resp.equals("CONNECTION FAILED"));
+        logger.info("Connection closed");
     }
 }
