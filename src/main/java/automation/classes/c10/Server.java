@@ -58,6 +58,7 @@ public class Server {
         fls.add(new SentenceFilter("Sentences",logger));
         fls.add(new BadWordFilter(PropertyUtil.getValueByKey("badWord"), logger));
         fls.add(new NameFilter(PropertyUtil.getValueByKey("names"), logger));
+        fls.add(new NameFilter(PropertyUtil.getValueByKey("geo names"), logger));
     }
 
 
