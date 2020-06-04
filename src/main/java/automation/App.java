@@ -11,13 +11,7 @@ public class App
 
 
     public static void main( String[] args ) {
-        Client cl1 = new Client(HOST,PORT,PropertyUtil.getValueByKey("niceToken1"));
-        Client cl2 = new Client(HOST,PORT,PropertyUtil.getValueByKey("niceToken2"));
-        Client cl3 = new Client(HOST,PORT,PropertyUtil.getValueByKey("badToken1"));
-
-        cl1.sendMessage();
-        cl2.sendMessage();
-        cl1.sendMessage();
-        cl3.sendMessage();
+        Client cl1 = new Client();
+        cl1.start();
     }
 }

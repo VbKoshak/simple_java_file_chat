@@ -2,6 +2,7 @@ package automation.classes.c10;
 
 import automation.classes.c10.bo.ConnectMessage;
 import automation.classes.c10.bo.HistoryMessage;
+import automation.classes.c10.bo.RegisterMessage;
 import automation.classes.c10.bo.ResponseMessage;
 import automation.constant.TimeConstant;
 import automation.filters.Filter;
@@ -27,6 +28,8 @@ import com.vdurmont.emoji.EmojiParser;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
+import javax.swing.*;
+
 
 public class Server {
     private static final Logger logger = Logger.getLogger(Server.class.getSimpleName());
@@ -36,8 +39,6 @@ public class Server {
     private static final int PORT = 8000;
 
     private static String historyPath;
-
-    private static FilterList fls;
 
     static {
         BasicConfigurator.configure();
@@ -53,29 +54,9 @@ public class Server {
             logger.error(e.getMessage());
         }
 
-        fls = new FilterList();
-        fls.add(new SpaceFilter("Spaces",logger));
-        fls.add(new SentenceFilter("Sentences",logger));
-        fls.add(new BadWordFilter(PropertyUtil.getValueByKey("badWord"), logger));
-        fls.add(new NameFilter(PropertyUtil.getValueByKey("names"), logger));
-        fls.add(new NameFilter(PropertyUtil.getValueByKey("geo names"), logger));
     }
 
-
-    public static void main(String[] args) {
-        logger.info(String.format("Listening on %s:%d", HOST, PORT));
-
-        while (true) {
-            try {
-                listen();
-                Thread.sleep(TimeConstant.TIME_TO_DELAY);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-
-    private static List<String> getHistory() {
+    public static List<String> getHistory() {
         List<String> resp = new ArrayList<>();
         try {
             File file = new File(historyPath);
@@ -94,48 +75,36 @@ public class Server {
         return resp;
     }
 
-    // TODO: filter msgs
-    private static void listen() {
+    public static boolean isRegistered(ConnectMessage msg) {
+        return msg.getHost().equals(HOST) && msg.getPort() == PORT && AVAILABLE_CLIENTS.contains(msg.getToken());
+    }
+
+    private static void listenRegisters() {
         Packable obj = SerializationUtil.readObject(PropertyUtil.getValueByKey("serial_path"));
         if (obj != null) {
-            ConnectMessage msg = ((ConnectMessage) obj);
+            RegisterMessage msg = ((RegisterMessage) obj);
+            clearFile(PropertyUtil.getValueByKey("serial_path"));
             Packable resp;
             if (msg.getHost().equals(HOST) && msg.getPort() == PORT && AVAILABLE_CLIENTS.contains(msg.getToken())) {
-                if (msg.getType().equals("message")) {
-//                    String mess = formatMsg(msg.getMessage());
-                    String mess = msg.getMessage();
-                    mess = fls.formatString(mess);
-                    mess = EmojiParser.parseToUnicode(mess);
-                    try (FileWriter fw = new FileWriter(historyPath, true)) {
-                        fw.write("\n" + mess);
-                    } catch (IOException ex) {
-                        logger.error(ex.getMessage());
-                    }
-                    logger.info(mess);
-                    resp = new ResponseMessage(HOST, PORT, "", "SUCCESS", 200);
-                } else if (msg.getType().equals("history")) {
-                    List<String> hstry = getHistory();
-                    resp = new HistoryMessage(HOST,PORT,"",hstry,201);
-                } else {
-                    resp = new ResponseMessage(HOST, PORT, "", "CONNECTION FAILED", 410);
-                }
-                clearSerial();
+                resp = new ResponseMessage(HOST, PORT, "", "REGISTER COMPLETE", 200);
+                //TODO создание нового thread'a
+                ClientThread th = new ClientThread(msg, logger, historyPath);
             } else if (!msg.getHost().equals(HOST)){
-                resp = new ResponseMessage(HOST, PORT, "", "CONNECTION FAILED", 401);
+                resp = new ResponseMessage(HOST, PORT, "", "REGISTER FAILED", 401);
             } else if (msg.getPort() != PORT){
-                resp = new ResponseMessage(HOST, PORT, "", "CONNECTION FAILED", 402);
+                resp = new ResponseMessage(HOST, PORT, "", "REGISTER FAILED", 402);
             } else if (!AVAILABLE_CLIENTS.contains(msg.getToken())){
-                resp = new ResponseMessage(HOST, PORT, "", "CONNECTION FAILED", 403);
+                resp = new ResponseMessage(HOST, PORT, "", "REGISTER FAILED", 403);
             } else {
-                resp = new ResponseMessage(HOST, PORT, "", "CONNECTION FAILED", 400);
+                resp = new ResponseMessage(HOST, PORT, "", "REGISTER FAILED", 400);
             }
-            sendResponse(resp,msg.getResponsePath());
+            sendResponse(resp, msg.getResponsePath());
         }
     }
 
-    private static void clearSerial(){
+    public static void clearFile(String localPath){
         try {
-            FileWriter fwOb = new FileWriter(System.getProperty("user.dir") + PropertyUtil.getValueByKey("serial_path"), false);
+            FileWriter fwOb = new FileWriter(System.getProperty("user.dir") + localPath, false);
             PrintWriter pwOb = new PrintWriter(fwOb, false);
             pwOb.flush();
             pwOb.close();
@@ -147,5 +116,26 @@ public class Server {
 
     private static void sendResponse(Packable pkg, String responsePath) {
         SerializationUtil.writeObject(pkg,responsePath);
+    }
+
+    public static void sendResponseMessage(String responsePath, String resp, int code){
+        Packable res = new ResponseMessage(HOST, PORT, "", resp, code);
+        sendResponse(res,responsePath);
+    }
+
+    public static void sendResponseMessage(String responsePath, List<String> resp, int code ) {
+        Packable res = new HistoryMessage(HOST, PORT, "", resp, code);
+        sendResponse(res, responsePath);
+    }
+
+    public static void main(String[] args) {
+        while(true) {
+            listenRegisters();
+            try {
+                Thread.sleep(TimeConstant.TIME_TO_DELAY);
+            } catch (InterruptedException ex) {
+                logger.error("Critical error");
+            }
+        }
     }
 }

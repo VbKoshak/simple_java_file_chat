@@ -15,9 +15,4 @@ public class SentenceFilter extends Filter implements MessageFilter {
     public String apply(String message) {
         return message.replaceAll("([,?!.])(\\S)", "$1 $2");
     }
-
-    public static void main(String[] args) {
-        String str = "abra?shavbra";
-        System.out.println((new SentenceFilter("ds",null)).apply(str));
-    }
 }
