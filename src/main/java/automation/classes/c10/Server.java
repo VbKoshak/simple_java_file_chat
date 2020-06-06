@@ -5,14 +5,6 @@ import automation.classes.c10.bo.HistoryMessage;
 import automation.classes.c10.bo.RegisterMessage;
 import automation.classes.c10.bo.ResponseMessage;
 import automation.constant.TimeConstant;
-import automation.filters.Filter;
-import automation.filters.FilterList;
-import automation.filters.impl.BadWordFilter;
-import automation.filters.impl.NameFilter;
-import automation.filters.impl.SentenceFilter;
-import automation.filters.impl.SpaceFilter;
-import automation.io.exception.UnableToReadException;
-import automation.io.impl.file.StreamTextFileReader;
 import automation.io.interfaces.Packable;
 import automation.util.PropertyUtil;
 import automation.util.SerializationUtil;
@@ -24,11 +16,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
-import com.vdurmont.emoji.EmojiParser;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
-import javax.swing.*;
 
 
 public class Server {
@@ -82,13 +72,14 @@ public class Server {
     private static void listenRegisters() {
         Packable obj = SerializationUtil.readObject(PropertyUtil.getValueByKey("serial_path"));
         if (obj != null) {
-            RegisterMessage msg = ((RegisterMessage) obj);
             clearFile(PropertyUtil.getValueByKey("serial_path"));
+            RegisterMessage msg = ((RegisterMessage) obj);
             Packable resp;
             if (msg.getHost().equals(HOST) && msg.getPort() == PORT && AVAILABLE_CLIENTS.contains(msg.getToken())) {
                 resp = new ResponseMessage(HOST, PORT, "", "REGISTER COMPLETE", 200);
                 //TODO создание нового thread'a
                 ClientThread th = new ClientThread(msg, logger, historyPath);
+
             } else if (!msg.getHost().equals(HOST)){
                 resp = new ResponseMessage(HOST, PORT, "", "REGISTER FAILED", 401);
             } else if (msg.getPort() != PORT){
@@ -99,6 +90,7 @@ public class Server {
                 resp = new ResponseMessage(HOST, PORT, "", "REGISTER FAILED", 400);
             }
             sendResponse(resp, msg.getResponsePath());
+            pingStatus(msg.getResponsePath());
         }
     }
 
@@ -121,11 +113,24 @@ public class Server {
     public static void sendResponseMessage(String responsePath, String resp, int code){
         Packable res = new ResponseMessage(HOST, PORT, "", resp, code);
         sendResponse(res,responsePath);
+        pingStatus(responsePath);
     }
 
     public static void sendResponseMessage(String responsePath, List<String> resp, int code ) {
         Packable res = new HistoryMessage(HOST, PORT, "", resp, code);
         sendResponse(res, responsePath);
+        pingStatus(responsePath);
+    }
+
+    public static void pingStatus(String responsePath) {
+        responsePath += PropertyUtil.getValueByKey("client_status_suffix");
+        responsePath = System.getProperty("user.dir") + responsePath;
+        try (FileWriter fw = new FileWriter(responsePath, false)) {
+            fw.write("s");
+        } catch (IOException ex) {
+            logger.info(responsePath);
+            logger.error(ex.getMessage());
+        }
     }
 
     public static void main(String[] args) {

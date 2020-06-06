@@ -16,7 +16,7 @@ public class ConnectMessage extends Package {
         super(host, port, token);
         this.message = message;
         this.responsePath = responsePath;
-        this.type = "history";
+        this.type = type;
     }
 
     public String getMessage() {

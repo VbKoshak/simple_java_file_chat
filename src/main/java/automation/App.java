@@ -12,6 +12,8 @@ public class App
 
     public static void main( String[] args ) {
         Client cl1 = new Client();
+        Client cl2 = new Client();
         cl1.start();
+        cl2.start();
     }
 }
