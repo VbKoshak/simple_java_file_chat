@@ -16,14 +16,14 @@ import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Random;
 import java.util.Scanner;
 
 import org.apache.log4j.Logger;
 import org.apache.log4j.BasicConfigurator;
 
 public class Client {
-    private static int clientCount = 0;
-    private static final Logger logger = Logger.getLogger(Server.class.getSimpleName());
+    private Logger logger;
     private String responsePath;
     private String fullResponsePath;
     private String statusPath;
@@ -36,6 +36,15 @@ public class Client {
     private File statusF;
     private TextFileReader statusTFR;
     private boolean going = true;
+
+    public Client(String host, int port, String token) {
+
+        this.host = host;
+        this.port = port;
+        this.token = token;
+
+        init();
+    }
 
     public Client() {
         Scanner in = new Scanner(System.in);
@@ -52,8 +61,19 @@ public class Client {
         this.host = host;
         this.port = port;
         this.token = token;
-        id = ++clientCount;
+
+        init();
+    }
+
+    private int getRandomID() {
+        return new Random().nextInt() + 1;
+    }
+
+    private void init() {
+        id = getRandomID();
+        this.logger = Logger.getLogger(Server.class.getSimpleName() + id);
         this.responsePath =  PropertyUtil.getValueByKey("client_path") + id;
+        System.out.println(responsePath);
         this.fullResponsePath =  System.getProperty("user.dir") + this.responsePath;
         BasicConfigurator.configure();
         statusPath = this.responsePath + PropertyUtil.getValueByKey("client_status_suffix");
@@ -66,7 +86,8 @@ public class Client {
         try {
             Files.createFile(Paths.get(fullResponsePath));
         } catch (FileAlreadyExistsException e) {
-
+            Server.clearFile(statusPath);
+            Server.clearFile(responsePath);
         } catch (IOException e) {
             logger.error(e.getMessage());
         } finally {
@@ -155,15 +176,24 @@ public class Client {
         return ans;
     }
 
-    private boolean register() {
-        Packable request = new RegisterMessage(host, port, token, responsePath);
-        SerializationUtil.writeObject(request, PropertyUtil.getValueByKey("serial_path"));
-        boolean ans = true;
-        while (ans) {
-            if (statusF.length() > 0){
-                ans = false;
+    public boolean register() {
+        boolean ans;
+        boolean time;
+        do {
+            Packable request = new RegisterMessage(host, port, token, responsePath);
+            SerializationUtil.writeObject(request, PropertyUtil.getValueByKey("serial_path"));
+            long reqT = System.currentTimeMillis();
+
+            ans = true;
+            time = true;
+            while (ans && time) {
+                time = reqT + TimeConstant.REPLY_DELAY > System.currentTimeMillis();
+                if (statusF.length() > 0) {
+                    ans = false;
+                    time = true;
+                }
             }
-        }
+        } while (!time);
         try {
             Packable resp = getResponse();
             Server.clearFile(responsePath);
@@ -217,5 +247,10 @@ public class Client {
 
     public Logger getLogger(){
         return this.logger;
+    }
+
+    public static void main(String[] args) {
+        Client cl1 = new Client();
+        cl1.start();
     }
 }

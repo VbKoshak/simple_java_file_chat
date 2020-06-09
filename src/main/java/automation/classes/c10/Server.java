@@ -1,9 +1,6 @@
 package automation.classes.c10;
 
-import automation.classes.c10.bo.ConnectMessage;
-import automation.classes.c10.bo.HistoryMessage;
-import automation.classes.c10.bo.RegisterMessage;
-import automation.classes.c10.bo.ResponseMessage;
+import automation.classes.c10.bo.*;
 import automation.constant.TimeConstant;
 import automation.io.interfaces.Packable;
 import automation.util.PropertyUtil;
@@ -28,11 +25,13 @@ public class Server {
     private static final String HOST = "127.0.0.1";
     private static final int PORT = 8000;
 
+
+    private static ClientThreadManager clm;
     private static String historyPath;
 
     static {
+        clm = new ClientThreadManager();
         BasicConfigurator.configure();
-
         String storyPath =  PropertyUtil.getValueByKey("chatHistory_path");
         historyPath =  System.getProperty("user.dir") + storyPath;
         Path p = Paths.get(historyPath);
@@ -133,7 +132,7 @@ public class Server {
         }
     }
 
-    public static void main(String[] args) {
+    public static void run() {
         while(true) {
             listenRegisters();
             try {
@@ -142,5 +141,14 @@ public class Server {
                 logger.error("Critical error");
             }
         }
+    }
+
+    public static void main(String[] args) {
+        Server sv1 = new Server();
+        sv1.run();
+    }
+
+    public static int getClientID() {
+        return clm.getThreadCount();
     }
 }

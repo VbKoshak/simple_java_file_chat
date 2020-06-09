@@ -1,14 +1,14 @@
 package automation;
+import automation.classes.c10.Client;
+import org.testng.annotations.*;
+import static org.testng.AssertJUnit.*;
 
-
-
-
-/**
- * Unit test for simple App.
- */
 public class AppTest 
 {
-    /**
-     * Rigorous Test :-)
-     */
+    @Test(threadPoolSize = 4, invocationCount = 3, timeOut = 10_000)
+    public void MultiClients() {
+        Client cl = new Client("127.0.0.1",8000,"user");
+        boolean ans = cl.register();
+        assertEquals(true, ans);
+    }
 }
