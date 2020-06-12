@@ -1,7 +1,5 @@
 package automation.classes.c10;
 
-import automation.classes.c10.ClientThread;
-import automation.classes.c10.bo.RegisterMessage;
 import automation.io.impl.xml.XMLMessage;
 import org.apache.log4j.Logger;
 
