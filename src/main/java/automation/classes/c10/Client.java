@@ -1,18 +1,12 @@
 package automation.classes.c10;
 
-import automation.classes.c10.bo.ConnectMessage;
-import automation.classes.c10.bo.HistoryMessage;
-import automation.classes.c10.bo.RegisterMessage;
-import automation.classes.c10.bo.ResponseMessage;
 import automation.constant.TimeConstant;
 import automation.io.impl.file.TextFileReader;
-import automation.io.interfaces.Packable;
+import automation.io.impl.xml.XMLController;
+import automation.io.impl.xml.XMLMessage;
 import automation.util.PropertyUtil;
-import automation.util.SerializationUtil;
 
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -73,7 +67,6 @@ public class Client {
         id = getRandomID();
         this.logger = Logger.getLogger(Server.class.getSimpleName() + id);
         this.responsePath =  PropertyUtil.getValueByKey("client_path") + id;
-        System.out.println(responsePath);
         this.fullResponsePath =  System.getProperty("user.dir") + this.responsePath;
         BasicConfigurator.configure();
         statusPath = this.responsePath + PropertyUtil.getValueByKey("client_status_suffix");
@@ -100,7 +93,8 @@ public class Client {
         try {
             Files.createFile(Paths.get(System.getProperty("user.dir") + this.statusPath));
         } catch (FileAlreadyExistsException e) {
-
+            Server.clearFile(statusPath);
+            Server.clearFile(responsePath);
         } catch (IOException e) {
             logger.error(e.getMessage());
         } finally {
@@ -113,7 +107,24 @@ public class Client {
         canConnect = true;
     }
 
-    public String sendMessage(){
+    private  void printHistory(String historyPath) {
+        try {
+            File file = new File(historyPath);
+            FileReader fr = new FileReader(file);
+            BufferedReader reader = new BufferedReader(fr);
+            String line = reader.readLine();
+            while (line != null) {
+                System.out.println(line);
+                line = reader.readLine();
+            }
+        } catch (FileNotFoundException e) {
+            logger.error(e.getMessage());
+        } catch (IOException e) {
+            logger.error(e.getMessage());
+        }
+    }
+
+    public String sendMessageXML(){
         String responseMsg = "CONNECTION FAILED";
         Scanner in = new Scanner(System.in);
         System.out.println("Enter message: ");
@@ -124,24 +135,25 @@ public class Client {
             try {
                 Thread.sleep(TimeConstant.TIME_TO_DELAY);
                 boolean doit = true;
-                Packable obj = null;
+                XMLMessage obj = null;
                 while (doit){
                     if (statusF.length() > 0 && statusTFR.read().equals("s")) {
                         Server.clearFile(statusPath);
-                        obj = getResponse();
+                        obj = getResponseXML();
                         Server.clearFile(responsePath);
-                        if (obj != null && (obj.getClass().getSimpleName().equals("HistoryMessage") || obj.getClass().getSimpleName().equals("ResponseMessage"))) {
+                        if (obj != null && (obj.getHead().equals("HistoryMessage") || obj.getHead().equals("ResponseMessage"))) {
                             doit = false;
                         }
                     }
                 }
                 if (msg.equals(":history")) {
-                    ((HistoryMessage) obj).printHistory();
-                    responseMsg = ((HistoryMessage) obj).getResp();
+                    String historyPath = obj.getMessage();
+                    printHistory(historyPath);
+                    responseMsg = "done";
                 } else if (msg.equals(":close")) {
                     going = false;
                 } else {
-                    responseMsg = ((ResponseMessage) obj).getResp();
+                    responseMsg = obj.getMessage();
                 }
             } catch (Exception ex) {
                logger.error(ex.getMessage());
@@ -151,15 +163,15 @@ public class Client {
     }
 
     private void connect(final String host, final int port, final String token, String msg) {
-        Packable pkg;
+        XMLMessage xmm;
         if (msg.equals(":history")){
-            pkg = new ConnectMessage(host, port, token, msg, this.responsePath, "history");
+            xmm = new XMLMessage(host, port, token, msg, "history");
         } else if (msg.equals(":close")) {
-            pkg = new ConnectMessage(host, port, token, msg, this.responsePath, "close");
+            xmm = new XMLMessage(host, port, token, msg, "close");
         } else {
-            pkg = new ConnectMessage(host, port, token, msg, this.responsePath);
+            xmm = new XMLMessage(host, port, token, msg, "message");
         }
-        SerializationUtil.writeObject(pkg, this.responsePath);
+        XMLController.sendMessage(xmm,responsePath);
         pingStatus();
     }
 
@@ -171,17 +183,17 @@ public class Client {
         }
     }
 
-    private Packable getResponse() {
-        Packable ans = SerializationUtil.readObject(this.responsePath);
+    private XMLMessage getResponseXML() {
+        XMLMessage ans = XMLController.readMessage(this.responsePath);
         return ans;
     }
 
-    public boolean register() {
+    public boolean registerXML(){
         boolean ans;
         boolean time;
         do {
-            Packable request = new RegisterMessage(host, port, token, responsePath);
-            SerializationUtil.writeObject(request, PropertyUtil.getValueByKey("serial_path"));
+            XMLMessage request = new XMLMessage(host, port, token, responsePath);
+            XMLController.sendMessage(request, PropertyUtil.getValueByKey("serial_path"));
             long reqT = System.currentTimeMillis();
 
             ans = true;
@@ -195,10 +207,10 @@ public class Client {
             }
         } while (!time);
         try {
-            Packable resp = getResponse();
+            XMLMessage resp = XMLController.readMessage(responsePath);
             Server.clearFile(responsePath);
             if (resp != null) {
-                int responseCode = (((ResponseMessage) resp).getCode());
+                int responseCode = resp.getCode();
                 if (responseCode == 200) {
                     ans = true;
                 }
@@ -216,13 +228,13 @@ public class Client {
         while (canConnect == false) {
             //Waiting to create files
         }
-        boolean result = this.register();
+        boolean result = this.registerXML();
 
         if (result == true) {
             logger.info("Registration complete");
             String resp;
             do {
-                resp = this.sendMessage();
+                resp = this.sendMessageXML();
             } while(!resp.equals("CONNECTION FAILED") && going);
         } else {
             //TODO make more descriptive answer according to codes
@@ -230,19 +242,14 @@ public class Client {
         }
 
         if(going == true) {
-            sendCloseMessage();
+            sendCloseMessageXML();
         }
     }
 
-    private void sendCloseMessage() {
-        Packable pkg;
-        pkg = new ConnectMessage(host, port, token, "disconnect", this.responsePath, "close");
-        SerializationUtil.writeObject(pkg, this.responsePath);
+    private void sendCloseMessageXML() {
+        XMLMessage msg = new XMLMessage(host, port,token,"disconnect", "close");
+        XMLController.sendMessage(msg,responsePath);
         pingStatus();
-    }
-
-    public int getId() {
-        return this.id;
     }
 
     public Logger getLogger(){

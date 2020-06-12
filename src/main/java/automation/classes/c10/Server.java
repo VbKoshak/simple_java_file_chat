@@ -1,10 +1,9 @@
 package automation.classes.c10;
 
-import automation.classes.c10.bo.*;
 import automation.constant.TimeConstant;
-import automation.io.interfaces.Packable;
+import automation.io.impl.xml.XMLController;
+import automation.io.impl.xml.XMLMessage;
 import automation.util.PropertyUtil;
-import automation.util.SerializationUtil;
 
 import java.io.*;
 import java.nio.file.FileAlreadyExistsException;
@@ -28,6 +27,8 @@ public class Server {
 
     private static ClientThreadManager clm;
     private static String historyPath;
+    private final static String TOKEN = "server";
+    private final static File registers;
 
     static {
         clm = new ClientThreadManager();
@@ -43,53 +44,38 @@ public class Server {
             logger.error(e.getMessage());
         }
 
+        registers = new File(System.getProperty("user.dir")+PropertyUtil.getValueByKey("serial_path"));
     }
 
-    public static List<String> getHistory() {
-        List<String> resp = new ArrayList<>();
-        try {
-            File file = new File(historyPath);
-            FileReader fr = new FileReader(file);
-            BufferedReader reader = new BufferedReader(fr);
-            String line = reader.readLine();
-            while (line != null) {
-                resp.add(line);
-                line = reader.readLine();
-            }
-        } catch (FileNotFoundException e) {
-            logger.error(e.getMessage());
-        } catch (IOException e) {
-            logger.error(e.getMessage());
-        }
-        return resp;
+    public static String getHistoryPath() {
+        return historyPath;
     }
 
-    public static boolean isRegistered(ConnectMessage msg) {
+    public static boolean isRegisteredXML(XMLMessage msg) {
         return msg.getHost().equals(HOST) && msg.getPort() == PORT && AVAILABLE_CLIENTS.contains(msg.getToken());
     }
 
-    private static void listenRegisters() {
-        Packable obj = SerializationUtil.readObject(PropertyUtil.getValueByKey("serial_path"));
-        if (obj != null) {
-            clearFile(PropertyUtil.getValueByKey("serial_path"));
-            RegisterMessage msg = ((RegisterMessage) obj);
-            Packable resp;
-            if (msg.getHost().equals(HOST) && msg.getPort() == PORT && AVAILABLE_CLIENTS.contains(msg.getToken())) {
-                resp = new ResponseMessage(HOST, PORT, "", "REGISTER COMPLETE", 200);
-                //TODO создание нового thread'a
-                ClientThread th = new ClientThread(msg, logger, historyPath);
+    private static void listenRegistersXML() {
+        if (registers.length() > 0) {
+            XMLMessage msg = XMLController.readMessage(PropertyUtil.getValueByKey("serial_path"));
+            if (msg != null && msg.getHead().equals("RegisterMessage")) {
+                clearFile(PropertyUtil.getValueByKey("serial_path"));
+                if (msg.getHost().equals(HOST) && msg.getPort() == PORT && AVAILABLE_CLIENTS.contains(msg.getToken())) {
+                    sendResponseMessage(msg.getMessage(), "REGISTER COMPLETE", 200);
+                    //TODO создание нового thread'a
+                    ClientThread th = new ClientThread(msg, logger, historyPath);
 
-            } else if (!msg.getHost().equals(HOST)){
-                resp = new ResponseMessage(HOST, PORT, "", "REGISTER FAILED", 401);
-            } else if (msg.getPort() != PORT){
-                resp = new ResponseMessage(HOST, PORT, "", "REGISTER FAILED", 402);
-            } else if (!AVAILABLE_CLIENTS.contains(msg.getToken())){
-                resp = new ResponseMessage(HOST, PORT, "", "REGISTER FAILED", 403);
-            } else {
-                resp = new ResponseMessage(HOST, PORT, "", "REGISTER FAILED", 400);
+                } else if (!msg.getHost().equals(HOST)) {
+                    sendResponseMessage(msg.getMessage(), "REGISTER FAILED", 401);
+                } else if (msg.getPort() != PORT) {
+                    sendResponseMessage(msg.getMessage(), "REGISTER FAILED", 402);
+                } else if (!AVAILABLE_CLIENTS.contains(msg.getToken())) {
+                    sendResponseMessage(msg.getMessage(), "REGISTER FAILED", 403);
+                } else {
+                    sendResponseMessage(msg.getMessage(), "REGISTER FAILED", 400);
+                }
+                pingStatus(msg.getMessage());
             }
-            sendResponse(resp, msg.getResponsePath());
-            pingStatus(msg.getResponsePath());
         }
     }
 
@@ -105,19 +91,13 @@ public class Server {
         }
     }
 
-    private static void sendResponse(Packable pkg, String responsePath) {
-        SerializationUtil.writeObject(pkg,responsePath);
+    private static void sendResponse(XMLMessage msg, String responsePath) {
+        XMLController.sendMessage(msg,responsePath);
     }
 
     public static void sendResponseMessage(String responsePath, String resp, int code){
-        Packable res = new ResponseMessage(HOST, PORT, "", resp, code);
+        XMLMessage res = new XMLMessage(HOST, PORT, TOKEN, resp, code);
         sendResponse(res,responsePath);
-        pingStatus(responsePath);
-    }
-
-    public static void sendResponseMessage(String responsePath, List<String> resp, int code ) {
-        Packable res = new HistoryMessage(HOST, PORT, "", resp, code);
-        sendResponse(res, responsePath);
         pingStatus(responsePath);
     }
 
@@ -134,7 +114,7 @@ public class Server {
 
     public static void run() {
         while(true) {
-            listenRegisters();
+            listenRegistersXML();
             try {
                 Thread.sleep(TimeConstant.TIME_TO_DELAY);
             } catch (InterruptedException ex) {
@@ -148,7 +128,4 @@ public class Server {
         sv1.run();
     }
 
-    public static int getClientID() {
-        return clm.getThreadCount();
-    }
 }

@@ -1,7 +1,5 @@
 package automation.classes.c10;
 
-import automation.classes.c10.bo.ConnectMessage;
-import automation.classes.c10.bo.RegisterMessage;
 import automation.constant.TimeConstant;
 import automation.filters.FilterList;
 import automation.filters.impl.BadWordFilter;
@@ -10,20 +8,18 @@ import automation.filters.impl.SentenceFilter;
 import automation.filters.impl.SpaceFilter;
 import automation.io.exception.UnableToReadException;
 import automation.io.impl.file.TextFileReader;
-import automation.io.interfaces.Packable;
+import automation.io.impl.xml.XMLController;
+import automation.io.impl.xml.XMLMessage;
 import automation.util.PropertyUtil;
-import automation.util.SerializationUtil;
 import com.vdurmont.emoji.EmojiParser;
 import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.List;
 
 public class ClientThread extends Thread {
 
-    private Client client;
     private String responsePath;
     private String statusPath;
     private String fullStatusPath;
@@ -36,13 +32,13 @@ public class ClientThread extends Thread {
     private File statusF;
     private TextFileReader statusTFR;
 
-    public ClientThread(RegisterMessage msg, Logger logger, String historyPath) {
+    public ClientThread(XMLMessage msg, Logger logger, String historyPath) {
         super(msg.getToken());
         this.logger = logger;
         this.historyPath = historyPath;
         logger.info("new thread created");
-        this.responsePath = msg.getResponsePath();
-        this.statusPath = msg.getResponsePath() + PropertyUtil.getValueByKey("client_status_suffix");
+        this.responsePath = msg.getMessage();
+        this.statusPath = responsePath + PropertyUtil.getValueByKey("client_status_suffix");
         this.fullStatusPath =  System.getProperty("user.dir") + this.statusPath;
 
         this.statusF = new File(fullStatusPath);
@@ -62,13 +58,11 @@ public class ClientThread extends Thread {
         if (statusF.length() > 0) {
             try {
             if (statusTFR.read().equals("c")) {
-                Packable obj = SerializationUtil.readObject(this.responsePath);
+                XMLMessage msg = XMLController.readMessage(this.responsePath);
                 Server.clearFile(statusPath);
                 Server.clearFile(responsePath);
-                if (obj != null && obj.getClass().getSimpleName().equals("ConnectMessage")) {
-                    ConnectMessage msg = ((ConnectMessage) obj);
-                    Packable resp;
-                    if (Server.isRegistered(msg)) {
+                if (msg != null && msg.getHead().equals("ConnectMessage")) {
+                    if (Server.isRegisteredXML(msg)) {
                         if (msg.getType().equals("message")) {
                             String mess = fls.formatString(msg.getMessage());
                             mess = EmojiParser.parseToUnicode(mess);
@@ -84,7 +78,7 @@ public class ClientThread extends Thread {
                             running = false;
                             Server.sendResponseMessage(responsePath, "SUCCESS", 200);
                         } else if (msg.getType().equals("history")) {
-                            List<String> hstry = Server.getHistory();
+                            String hstry = Server.getHistoryPath();
                             Server.sendResponseMessage(responsePath, hstry, 201);
                         } else {
                             Server.sendResponseMessage(responsePath, "CONNECTION FAILED", 410);
