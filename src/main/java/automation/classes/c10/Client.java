@@ -202,11 +202,11 @@ public class Client {
     private void sendMessage(String msg) {
         XMLMessage xmm;
         if (msg.equals(CommandConstants.HISTORY_REQUEST_MESSAGE)){
-            xmm = new XMLMessage(host, port, token, msg, "history");
+            xmm = new XMLMessage(host, port, token, msg, MessageConstants.HISTORY_MESSAGE_TYPE);
         } else if (msg.equals(CommandConstants.CLOSE_REQUEST_MESSAGE)) {
-            xmm = new XMLMessage(host, port, token, msg, "close");
+            xmm = new XMLMessage(host, port, token, msg, MessageConstants.CLOSE_MESSAGE_TYPE);
         } else {
-            xmm = new XMLMessage(host, port, token, msg, "message");
+            xmm = new XMLMessage(host, port, token, msg, MessageConstants.SIMPLE_MESSAGE_TYPE);
         }
         XMLController.sendMessage(xmm,responsePath);
         pingStatus();
@@ -227,7 +227,7 @@ public class Client {
      * @return String - text reponse from server
      */
     public String connect(String msg){
-        String responseMsg = "CONNECTION FAILED";
+        String responseMsg = MessageConstants.CONNECTION_FAILED_INFO;
         if (canConnect == true) {
             sendMessage(msg);
             try {
@@ -238,7 +238,7 @@ public class Client {
                         obj = getResponseXML();
                         Server.clearFile(responsePath);
                         Server.clearFile(statusPath);
-                        if (obj != null && (obj.getHead().equals("HistoryMessage") || obj.getHead().equals("ResponseMessage"))) {
+                        if (obj != null && (obj.getHead().equals(MessageConstants.HISTORY_MESSAGE_HEAD) || obj.getHead().equals(MessageConstants.RESPONSE_MESSAGE_HEAD))) {
                             doit = false;
                         }
                     }
@@ -246,7 +246,7 @@ public class Client {
                 if (msg.equals(CommandConstants.HISTORY_REQUEST_MESSAGE)) {
                     String historyPath = obj.getMessage();
                     printHistory(historyPath);
-                    responseMsg = "done";
+                    responseMsg = MessageConstants.CONNECTION_SUCCESS_INFO;
                 } else if (msg.equals(CommandConstants.CLOSE_REQUEST_MESSAGE)) {
                     going = false;
                 } else {
@@ -284,6 +284,7 @@ public class Client {
         try {
             XMLMessage resp = XMLController.readMessage(responsePath);
             Server.clearFile(responsePath);
+            Server.clearFile(statusPath);
             if (resp != null) {
                 int responseCode = resp.getCode();
                 if (responseCode == 200) {
@@ -291,9 +292,7 @@ public class Client {
                 }
             }
         } catch (Exception ex) {
-            ex.printStackTrace();
-            System.out.println("ERROR #1");
-            logger.error(ex.getMessage());
+            System.out.println(MessageConstants.FAILED_REGISTRATION_MESSAGE);
         }
 
         return ans;
@@ -303,7 +302,7 @@ public class Client {
      * sends a request for server to close connection
      */
     private void sendCloseMessageXML() {
-        XMLMessage msg = new XMLMessage(host, port,token,"disconnect", "close");
+        XMLMessage msg = new XMLMessage(host, port,token,MessageConstants.ON_CONNECT_CLOSE, MessageConstants.CLOSE_MESSAGE_TYPE);
         XMLController.sendMessage(msg,responsePath);
         pingStatus();
     }
