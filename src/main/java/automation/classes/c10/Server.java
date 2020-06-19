@@ -129,6 +129,24 @@ public class Server {
     }
 
     /**
+     * check if message is not null and register type
+     * @param msg - XMLMessage from clint to register user
+     * @return true - if message is not null and have correct header, else - false
+     */
+    private static boolean checkMessage(XMLMessage msg) {
+        return (msg != null && msg.getHead().equals(MessageConstants.REGISTER_MESSAGE_HEAD));
+    }
+
+    /**
+     * check if register message send correct credentials
+     * @param msg - XMLMessage from client to register user
+     * @return true - if host, port, token corresponds to server credentials, else - false
+     */
+    private static boolean checkRegister(XMLMessage msg) {
+        return (msg.getHost().equals(HOST) && msg.getPort() == PORT && AVAILABLE_CLIENTS.contains(msg.getToken()));
+    }
+
+    /**
      * function that checks if a new registration request appeared,
      *  if so creates new client thread
      *  if registration failed sends response of failed registration
@@ -136,9 +154,9 @@ public class Server {
     private static void listenRegistersXML() {
         if (registers.length() > 0) {
             XMLMessage msg = XMLController.readMessage(PropertyUtil.getValueByKey("serial_path"));
-            if (msg != null && msg.getHead().equals(MessageConstants.REGISTER_MESSAGE_HEAD)) {
+            if (checkMessage(msg)) {
                 clearFile(PropertyUtil.getValueByKey("serial_path"));
-                if (msg.getHost().equals(HOST) && msg.getPort() == PORT && AVAILABLE_CLIENTS.contains(msg.getToken())) {
+                if (checkRegister(msg)) {
                     sendResponseMessage(msg.getMessage(), MessageConstants.ON_REGISTER_SUCCESS, 200);
                     ClientThread th = new ClientThread(msg, logger, historyPath);
                 } else if (!msg.getHost().equals(HOST)) {

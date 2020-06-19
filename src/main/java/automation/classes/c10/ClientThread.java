@@ -54,6 +54,7 @@ public class ClientThread extends Thread {
      */
     public ClientThread(XMLMessage msg, Logger logger, String historyPath) {
         super(msg.getMessage().replaceAll("[^0-9]+", ""));
+        String id = msg.getMessage().replaceAll("[^0-9]+", "");
         this.logger = logger;
         this.historyPath = historyPath;
         this.responsePath = msg.getMessage();
@@ -69,6 +70,8 @@ public class ClientThread extends Thread {
         logger.info(MessageConstants.ON_THREAD_CREATION);
         start();
     }
+
+
 
     /**
      * work with message from aa client, sends corresponding response

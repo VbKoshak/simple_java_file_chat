@@ -120,8 +120,8 @@ public class Client {
         try {
             Files.createFile(Paths.get(fullResponsePath));
         } catch (FileAlreadyExistsException e) {
-            Server.clearFile(statusPath);
-            Server.clearFile(responsePath);
+            automation.classes.c10.Server.clearFile(statusPath);
+            automation.classes.c10.Server.clearFile(responsePath);
         } catch (IOException e) {
             logger.error(e.getMessage());
         } finally {

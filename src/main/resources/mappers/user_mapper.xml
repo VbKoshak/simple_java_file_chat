@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="user_mapper">
+    <select id="getById" resultMap="user_map">
+        SELECT
+        *
+        FROM user
+        WHERE id = #{id}
+    </select>
+    <select id="getByPath" resultMap="user_map">
+        SELECT
+        *
+        FROM user u
+        WHERE u.path_id = #{path_id}
+    </select>
+    <select id="get" resultMap="user_map">
+        SELECT
+        *
+        FROM user
+    </select>
+    <delete id="deleteById">
+        DELETE FROM user WHERE id=#{id}
+    </delete>
+    <insert id="create">
+        INSERT INTO user(id, path_id) VALUES(#{id},#{path_id})
+    </insert>
+
+    <resultMap id="user_map" type="automation.mybatis.model.User" autoMapping="false">
+        <id property="id" column="id"/>
+        <result property="path_id" column="path_id"/>
+    </resultMap>
+</mapper>
