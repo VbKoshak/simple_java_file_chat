@@ -12,8 +12,8 @@
     <select id="getByPath" resultMap="user_map">
         SELECT
         *
-        FROM user u
-        WHERE u.path_id = #{path_id}
+        FROM user
+        WHERE path_id = #{path_id}
     </select>
     <select id="get" resultMap="user_map">
         SELECT
@@ -24,11 +24,13 @@
         DELETE FROM user WHERE id=#{id}
     </delete>
     <insert id="create">
-        INSERT INTO user(id, path_id) VALUES(#{id},#{path_id})
+        INSERT INTO user(path_id, userName) VALUES(#{path_id},#{userName})
     </insert>
 
     <resultMap id="user_map" type="automation.mybatis.model.User" autoMapping="false">
         <id property="id" column="id"/>
         <result property="path_id" column="path_id"/>
+        <result property="userName" column="userName"/>
+        <result property="user_id" column="id"/>
     </resultMap>
 </mapper>

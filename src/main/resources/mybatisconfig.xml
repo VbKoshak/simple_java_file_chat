@@ -9,8 +9,8 @@
             <dataSource type="POOLED">
                 <property name="driver" value="com.mysql.jdbc.Driver"/>
                 <property name="url" value="jdbc:mysql://localhost:3306/chat?useSSL=false"/>
-                <property name="username" value="***"/>
-                <property name="password" value="***"/>
+                <property name="username" value="vbkoshak"/>
+                <property name="password" value="10091999"/>
             </dataSource>
         </environment>
     </environments>

@@ -28,9 +28,9 @@ public class UserDAOImpl implements UserDAO {
     }
 
     @Override
-    public User getByPath(long id) {
+    public User getByPath(long path_id) {
         SqlSession sqlSession = SessionFactory.getSession();
-        User a = sqlSession.selectOne(namespace + ".getByPath", id);
+        User a = sqlSession.selectOne(namespace + ".getByPath", path_id);
         sqlSession.close();
         return a;
     }
