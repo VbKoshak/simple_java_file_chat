@@ -23,7 +23,7 @@ public class UserTest {
 
     @Test
     public void testUserGetById() {
-        User a = us.getUserById(1);
+        User a = us.getUserById(100500);
         Assert.assertEquals(a.getPath_id(), 123);
     }
 

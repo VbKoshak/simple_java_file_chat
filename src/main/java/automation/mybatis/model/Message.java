@@ -4,7 +4,7 @@ import java.util.Date;
 
 public class Message extends AbstractEntity{
     private int id;
-    private int user_id;
+    private long user_id;
     private String message;
     private Date tm;
 
@@ -14,13 +14,13 @@ public class Message extends AbstractEntity{
 
     }
 
-    public Message(int user_id, String message, Date tm) {
+    public Message(long user_id, String message, Date tm) {
         this.user_id = user_id;
         this.message = message;
         this.tm = tm;
     }
 
-    public Message(int user_id, String message) {
+    public Message(long user_id, String message) {
         this.message = message;
         this.user_id = user_id;
     }
@@ -51,7 +51,7 @@ public class Message extends AbstractEntity{
         this.tm = tm;
     }
 
-    public int getUser_id() {
+    public long getUser_id() {
         return user_id;
     }
 

@@ -26,7 +26,7 @@ public class MessageTest {
 
     @Test
     public void testMessageGetById() {
-        int id = ms.getMessageById(1).getUser_id();
+        long id = ms.getMessageById(1).getUser_id();
         Assert.assertEquals(id, 20);
     }
 

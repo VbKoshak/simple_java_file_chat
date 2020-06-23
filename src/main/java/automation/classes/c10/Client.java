@@ -53,6 +53,7 @@ public class Client {
     private String statusPath;
     private String fullStatusPath;
     private String host;
+    private String login;
     private int port;
     private String token;
     private boolean canConnect = false;
@@ -68,7 +69,7 @@ public class Client {
      * @param port - port of a server to connect
      * @param token - token to connect to server
      */
-    public Client(String host, int port, String token) {
+    public Client(String host, int port, String token, String login) {
 
         this.host = host;
         this.port = port;
@@ -93,11 +94,14 @@ public class Client {
         in.nextLine();
         System.out.println("token: ");
         String token = in.nextLine();
+        System.out.println("login: ");
+        String login = in.nextLine();
 
 
         this.host = host;
         this.port = port;
         this.token = token;
+        this.login = login;
 
         init();
     }
@@ -167,21 +171,8 @@ public class Client {
      * Prints to terminal chat history
      * @param historyPath - path  to a history File, gained by server after request
      */
-    private  void printHistory(String historyPath) {
-        try {
-            File file = new File(historyPath);
-            FileReader fr = new FileReader(file);
-            BufferedReader reader = new BufferedReader(fr);
-            String line = reader.readLine();
-            while (line != null) {
-                System.out.println(line);
-                line = reader.readLine();
-            }
-        } catch (FileNotFoundException e) {
-            logger.error(e.getMessage());
-        } catch (IOException e) {
-            logger.error(e.getMessage());
-        }
+    private  void printHistory(String history) {
+        System.out.println(history);
     }
 
     /**
@@ -202,11 +193,11 @@ public class Client {
     private void sendMessage(String msg) {
         XMLMessage xmm;
         if (msg.equals(CommandConstants.HISTORY_REQUEST_MESSAGE)){
-            xmm = new XMLMessage(host, port, token, msg, MessageConstants.HISTORY_MESSAGE_TYPE);
+            xmm = new XMLMessage(host, login, port, token, msg, MessageConstants.HISTORY_MESSAGE_TYPE);
         } else if (msg.equals(CommandConstants.CLOSE_REQUEST_MESSAGE)) {
-            xmm = new XMLMessage(host, port, token, msg, MessageConstants.CLOSE_MESSAGE_TYPE);
+            xmm = new XMLMessage(host, login, port, token, msg, MessageConstants.CLOSE_MESSAGE_TYPE);
         } else {
-            xmm = new XMLMessage(host, port, token, msg, MessageConstants.SIMPLE_MESSAGE_TYPE);
+            xmm = new XMLMessage(host, login, port, token, msg, MessageConstants.SIMPLE_MESSAGE_TYPE);
         }
         XMLController.sendMessage(xmm,responsePath);
         pingStatus();
@@ -244,8 +235,8 @@ public class Client {
                     }
                 }
                 if (msg.equals(CommandConstants.HISTORY_REQUEST_MESSAGE)) {
-                    String historyPath = obj.getMessage();
-                    printHistory(historyPath);
+                    String history = obj.getMessage();
+                    printHistory(history);
                     responseMsg = MessageConstants.CONNECTION_SUCCESS_INFO;
                 } else if (msg.equals(CommandConstants.CLOSE_REQUEST_MESSAGE)) {
                     going = false;
@@ -267,7 +258,7 @@ public class Client {
         boolean ans;
         boolean time;
         do {
-            XMLMessage request = new XMLMessage(host, port, token, responsePath);
+            XMLMessage request = new XMLMessage(host, login, port, token, responsePath);
             XMLController.sendMessage(request, PropertyUtil.getValueByKey("serial_path"));
             long reqT = System.currentTimeMillis();
 
@@ -283,13 +274,17 @@ public class Client {
         } while (!time);
         try {
             XMLMessage resp = XMLController.readMessage(responsePath);
-            Server.clearFile(responsePath);
-            Server.clearFile(statusPath);
-            if (resp != null) {
-                int responseCode = resp.getCode();
-                if (responseCode == 200) {
-                    ans = true;
+            if (resp.getLogin().equals(login)) {
+                Server.clearFile(responsePath);
+                Server.clearFile(statusPath);
+                if (resp != null) {
+                    int responseCode = resp.getCode();
+                    if (responseCode == 200) {
+                        ans = true;
+                    }
                 }
+            } else {
+                throw new Exception();
             }
         } catch (Exception ex) {
             System.out.println(MessageConstants.FAILED_REGISTRATION_MESSAGE);
@@ -302,7 +297,7 @@ public class Client {
      * sends a request for server to close connection
      */
     private void sendCloseMessageXML() {
-        XMLMessage msg = new XMLMessage(host, port,token,MessageConstants.ON_CONNECT_CLOSE, MessageConstants.CLOSE_MESSAGE_TYPE);
+        XMLMessage msg = new XMLMessage(host, login, port, token, MessageConstants.ON_CONNECT_CLOSE, MessageConstants.CLOSE_MESSAGE_TYPE);
         XMLController.sendMessage(msg,responsePath);
         pingStatus();
     }

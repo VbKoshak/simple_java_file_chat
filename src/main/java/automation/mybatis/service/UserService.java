@@ -20,6 +20,8 @@ public class UserService {
 
     public User getUserByPath(long path_id) {return userDAO.getByPath(path_id);}
 
+    public User getUserByLogin(String login) {return userDAO.getByLogin(login);}
+
     public void createUser(User User) throws PersistenceException {
         userDAO.create(User);
     }

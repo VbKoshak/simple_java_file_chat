@@ -15,6 +15,12 @@
         FROM user
         WHERE path_id = #{path_id}
     </select>
+    <select id="getByLogin" resultMap="user_map">
+        SELECT
+        *
+        FROM user
+        WHERE userName = #{userName}
+    </select>
     <select id="get" resultMap="user_map">
         SELECT
         *

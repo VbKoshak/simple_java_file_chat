@@ -36,6 +36,14 @@ public class UserDAOImpl implements UserDAO {
     }
 
     @Override
+    public User getByLogin(String login) {
+        SqlSession sqlSession = SessionFactory.getSession();
+        User a = sqlSession.selectOne(namespace + ".getByLogin", login);
+        sqlSession.close();
+        return a;
+    }
+
+    @Override
     public List<User> get() {
         SqlSession sqlSession = SessionFactory.getSession();
         List<User> as = sqlSession.selectList(namespace + ".get");

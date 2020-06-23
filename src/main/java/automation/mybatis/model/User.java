@@ -1,17 +1,17 @@
 package automation.mybatis.model;
 
 public class User extends AbstractEntity{
-    private int user_id;
-    private int path_id;
+    private long user_id;
+    private long path_id;
     private String userName;
 
-    public User(int id, int path_id, String userName) {
+    public User(long id, long path_id, String userName) {
         this.path_id = path_id;
         this.user_id = id;
         this.userName = userName;
     }
 
-    public User(int path_id, String userName) {
+    public User(long path_id, String userName) {
         this.path_id = path_id;
         this.userName = userName;
     }
@@ -28,7 +28,7 @@ public class User extends AbstractEntity{
         this.user_id = id;
     }
 
-    public int getPath_id() {
+    public long getPath_id() {
         return path_id;
     }
 

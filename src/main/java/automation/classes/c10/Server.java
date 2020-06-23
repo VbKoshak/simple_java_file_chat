@@ -4,6 +4,8 @@ import automation.constant.MessageConstants;
 import automation.constant.TimeConstant;
 import automation.io.impl.xml.XMLController;
 import automation.io.impl.xml.XMLMessage;
+import automation.mybatis.model.User;
+import automation.mybatis.service.UserService;
 import automation.util.PropertyUtil;
 
 import java.io.*;
@@ -13,6 +15,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
+import org.apache.ibatis.exceptions.PersistenceException;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 
@@ -30,6 +33,7 @@ public class Server {
      * historyPath - path to a file, storing history of a chat
      * token - personal token for replies
      * registers - file to cjeck register messages ("serial_path")
+     * us - tool to communicate with db
      */
 
     private static final Logger logger = Logger.getLogger(Server.class.getSimpleName());
@@ -37,6 +41,8 @@ public class Server {
     private static final List<String> AVAILABLE_CLIENTS = Arrays.asList("user","admin");
     private static final String HOST = "127.0.0.1";
     private static final int PORT = 8000;
+
+    private static final UserService us = new UserService();
 
     private static String historyPath;
     private final static String TOKEN = "server";
@@ -107,8 +113,8 @@ public class Server {
      * @param resp - message to be sent
      * @param code - code of a message to be sent
      */
-    public static void sendResponseMessage(String responsePath, String resp, int code){
-        XMLMessage res = new XMLMessage(HOST, PORT, TOKEN, resp, code);
+    public static void sendResponseMessage(String responsePath, String login, String resp, int code){
+        XMLMessage res = new XMLMessage(HOST, login, PORT, TOKEN, resp, code);
         sendResponse(res,responsePath);
         pingStatus(responsePath);
     }
@@ -143,7 +149,27 @@ public class Server {
      * @return true - if host, port, token corresponds to server credentials, else - false
      */
     private static boolean checkRegister(XMLMessage msg) {
-        return (msg.getHost().equals(HOST) && msg.getPort() == PORT && AVAILABLE_CLIENTS.contains(msg.getToken()));
+        int pathId = Integer.parseInt(msg.getMessage().replaceAll("[^0-9]+", ""));
+        String login = msg.getLogin();
+        boolean good = true;
+        try {
+            us.createUser(new User(pathId, login));
+        } catch (PersistenceException ex) {
+            // User already exists
+            try {
+                if (!us.getUserByPath(pathId).getUserName().equals(login)) {
+                    // if login does not correspond to server register close do not respond, close connection
+                    logger.info(MessageConstants.ON_REGISTER_FAILED);
+                    good = false;
+                }
+            } catch (NullPointerException exc) {
+                if(! (us.getUserByLogin(login).getPath_id() == pathId)) {
+                    logger.info(MessageConstants.ON_REGISTER_FAILED);
+                    good = false;
+                }
+            }
+        }
+        return (good && msg.getHost().equals(HOST) && msg.getPort() == PORT && AVAILABLE_CLIENTS.contains(msg.getToken()));
     }
 
     /**
@@ -157,16 +183,16 @@ public class Server {
             if (checkMessage(msg)) {
                 clearFile(PropertyUtil.getValueByKey("serial_path"));
                 if (checkRegister(msg)) {
-                    sendResponseMessage(msg.getMessage(), MessageConstants.ON_REGISTER_SUCCESS, 200);
+                    sendResponseMessage(msg.getMessage(), msg.getLogin(), MessageConstants.ON_REGISTER_SUCCESS, 200);
                     ClientThread th = new ClientThread(msg, logger, historyPath);
                 } else if (!msg.getHost().equals(HOST)) {
-                    sendResponseMessage(msg.getMessage(), MessageConstants.ON_REGISTER_FAILED, 401);
+                    sendResponseMessage(msg.getMessage(), msg.getLogin(), MessageConstants.ON_REGISTER_FAILED, 401);
                 } else if (msg.getPort() != PORT) {
-                    sendResponseMessage(msg.getMessage(), MessageConstants.ON_REGISTER_FAILED, 402);
+                    sendResponseMessage(msg.getMessage(), msg.getLogin(), MessageConstants.ON_REGISTER_FAILED, 402);
                 } else if (!AVAILABLE_CLIENTS.contains(msg.getToken())) {
-                    sendResponseMessage(msg.getMessage(), MessageConstants.ON_REGISTER_FAILED, 403);
+                    sendResponseMessage(msg.getMessage(), msg.getLogin(), MessageConstants.ON_REGISTER_FAILED, 403);
                 } else {
-                    sendResponseMessage(msg.getMessage(), MessageConstants.ON_REGISTER_FAILED, 400);
+                    sendResponseMessage(msg.getMessage(), msg.getLogin(), MessageConstants.ON_REGISTER_FAILED, 400);
                 }
                 pingStatus(msg.getMessage());
             }

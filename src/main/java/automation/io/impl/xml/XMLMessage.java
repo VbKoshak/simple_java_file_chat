@@ -8,10 +8,11 @@ import java.util.Date;
 import java.util.List;
 
 @XmlRootElement(name = "message")
-@XmlType(propOrder = { "head", "host", "port", "token", "type", "message", "code", "date" })
+@XmlType(propOrder = { "head", "host", "login", "port", "token", "type", "message", "code", "date" })
 public class XMLMessage {
     private String head;
     private String host;
+    private String login;
     private int port;
     private String token;
     private String type;
@@ -24,9 +25,10 @@ public class XMLMessage {
     }
 
     // ConnectMessage
-    public XMLMessage(String host, int port, String token, String message, String type) {
+    public XMLMessage(String host, String login, int port, String token, String message, String type) {
         this.type = type;
         this.host = host;
+        this.login = login;
         this.port = port;
         this.token = token;
         this.message = message;
@@ -35,8 +37,9 @@ public class XMLMessage {
     }
 
     // ResponseMessage
-    public XMLMessage(String host, int port, String token, String resp, int code) {
+    public XMLMessage(String host, String userLogin, int port, String token, String resp, int code) {
         this.host = host;
+        this.login = userLogin;
         this.port = port;
         this.token = token;
         this.message = resp;
@@ -46,8 +49,9 @@ public class XMLMessage {
     }
 
     //RegisterMessage
-    public XMLMessage (String host, int port, String token, String  responsePath) {
+    public XMLMessage (String host, String login, int port, String token, String  responsePath) {
         this.host = host;
+        this.login = login;
         this.port = port;
         this.token = token;
         this.message = responsePath;
@@ -134,5 +138,13 @@ public class XMLMessage {
     @Override
     public String toString() {
         return "Message [" + head + " " + message + " " + date.toString() + "]";
+    }
+
+    public String getLogin() {
+        return login;
+    }
+
+    public void setLogin(String login) {
+        this.login = login;
     }
 }
