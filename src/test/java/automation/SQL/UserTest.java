@@ -2,12 +2,15 @@ package automation.SQL;
 
 import automation.mybatis.model.User;
 import automation.mybatis.service.UserService;
+import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.ibatis.exceptions.PersistenceException;
 import org.apache.log4j.BasicConfigurator;
 import org.apache.log4j.Logger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.List;
+import java.util.Random;
 
 public class UserTest {
     private static final Logger LOGGER = Logger.getLogger(UserTest.class);
@@ -39,15 +42,33 @@ public class UserTest {
 
     @Test
     public void testDelete() {
-        us.deleteUserById(3);
-        Assert.assertEquals(us.getAllUsers().size(),2);
+        List<User> uss = us.getAllUsers();
+        long delId = uss.get(uss.size() - 1).getUser_id();
+        us.deleteUserById(delId);
+        Assert.assertEquals(us.getAllUsers().size(),uss.size() - 1);
     }
 
     @Test
     public void testCreate() {
-        int userPath = 1238;
-        String userName = "ceaki";
-        us.createUser(new User(userPath,userName));
-        Assert.assertEquals(us.getUserByPath(userPath).getUserName(),userName);
+        int userPath = new Random().nextInt();
+        String userName = RandomStringUtils.random(5);
+        try {
+            us.createUser(new User(userPath, userName));
+            Assert.assertEquals(us.getUserByPath(userPath).getUserName(),userName);
+        } catch (PersistenceException ex) {
+            Assert.assertEquals(true,true);
+        }
+    }
+
+    @Test
+    public void testDuplicateCreation() {
+        User testUser = us.getAllUsers().get(1);
+        boolean exception = false;
+        try {
+            us.createUser(testUser);
+        } catch (PersistenceException ex) {
+            exception = true;
+        }
+        Assert.assertEquals(exception, true);
     }
 }

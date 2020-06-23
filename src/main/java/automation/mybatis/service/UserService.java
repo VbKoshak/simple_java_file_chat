@@ -3,6 +3,7 @@ package automation.mybatis.service;
 import automation.mybatis.dao.UserDAO;
 import automation.mybatis.dao.impl.UserDAOImpl;
 import automation.mybatis.model.User;
+import org.apache.ibatis.exceptions.PersistenceException;
 
 import java.util.List;
 
@@ -19,7 +20,7 @@ public class UserService {
 
     public User getUserByPath(long path_id) {return userDAO.getByPath(path_id);}
 
-    public void createUser(User User) {
+    public void createUser(User User) throws PersistenceException {
         userDAO.create(User);
     }
 

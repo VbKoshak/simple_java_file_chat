@@ -20,6 +20,11 @@ public class Message extends AbstractEntity{
         this.tm = tm;
     }
 
+    public Message(int user_id, String message) {
+        this.message = message;
+        this.user_id = user_id;
+    }
+
 
     @Override
     public long getId() {
