@@ -7,12 +7,21 @@ import automation.io.exception.UnableToReadException;
 import automation.io.impl.file.TextFileReader;
 import automation.io.impl.xml.XMLController;
 import automation.io.impl.xml.XMLMessage;
+import automation.mybatis.model.Message;
+import automation.mybatis.model.User;
+import automation.mybatis.service.MessageService;
+import automation.mybatis.service.UserService;
 import automation.util.PropertyUtil;
+import org.apache.ibatis.exceptions.PersistenceException;
 import org.apache.log4j.Logger;
 
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.List;
 
 /**
  * thread created by server to communicate with a certain client
@@ -25,18 +34,29 @@ public class ClientThread extends Thread {
      * statusPath - Path of a file-marker of response status
      * fullStatusPath - Full path of a file-marker of response status
      * logger - Logger for Server output
+     * login - user's login to display (auth for second time log-in)
+     * id - user's id in db
+     *
+     * us - tool to communicate with user db
+     * ms - tool to communicate with msg db
      *
      * running - flag, showing 'life' of a connection
      *
      * fls - List of Filters to refactor messages
      * historyPath - path to store history of a chat
      * statusF - file for file-marker
-     * statusTFR -FileReader for file-marker
+     * statusTFR - FileReader for file-marker
+     * dateFormat - formatter for Date
      */
     private String responsePath;
     private String statusPath;
     private String fullStatusPath;
     private Logger logger;
+    private String login;
+    private long id;
+
+    private UserService us = new UserService();
+    private MessageService ms = new MessageService();
 
     private boolean running = true;
 
@@ -44,6 +64,7 @@ public class ClientThread extends Thread {
     private String historyPath;
     private File statusF;
     private TextFileReader statusTFR;
+    private DateFormat dateFormat = new SimpleDateFormat("yyyy-mm-dd hh:mm:ss");
 
     /**
      * basic constructor for client thread
@@ -57,6 +78,7 @@ public class ClientThread extends Thread {
         this.logger = logger;
         this.historyPath = historyPath;
         this.responsePath = msg.getMessage();
+        this.login = msg.getLogin();
         this.statusPath = responsePath + PropertyUtil.getValueByKey("client_status_suffix");
         this.fullStatusPath =  System.getProperty("user.dir") + this.statusPath;
 
@@ -66,9 +88,14 @@ public class ClientThread extends Thread {
         fls = new FilterList();
         fls.initBasic(logger);
 
+        this.id = us.getUserByPath(Integer.parseInt(msg.getMessage().replaceAll("[^0-9]+", ""))).getUser_id();
+
+
         logger.info(MessageConstants.ON_THREAD_CREATION);
         start();
     }
+
+
 
     /**
      * work with message from aa client, sends corresponding response
@@ -78,24 +105,24 @@ public class ClientThread extends Thread {
             if (Server.isRegisteredXML(msg)) {
                 if (msg.getType().equals(MessageConstants.SIMPLE_MESSAGE_TYPE)) {
                     String mess = fls.formatString(msg.getMessage());
-                    try (FileWriter fw = new FileWriter(historyPath, true)) {
-                        fw.write("\n" + mess);
-                    } catch (IOException ex) {
-                        logger.error(ex.getMessage());
-                    }
+                    ms.createMessage(new Message(id, mess));
                     logger.info(mess);
-                    Server.sendResponseMessage(responsePath, MessageConstants.CONNECTION_SUCCESS_INFO, 200);
+                    Server.sendResponseMessage(responsePath, login, MessageConstants.CONNECTION_SUCCESS_INFO, 200);
                 } else if (msg.getType().equals(MessageConstants.CLOSE_MESSAGE_TYPE)) {
                     running = false;
-                    Server.sendResponseMessage(responsePath, MessageConstants.CONNECTION_SUCCESS_INFO, 200);
+                    Server.sendResponseMessage(responsePath, login, MessageConstants.CONNECTION_SUCCESS_INFO, 200);
                 } else if (msg.getType().equals(MessageConstants.HISTORY_MESSAGE_TYPE)) {
-                    String hstry = Server.getHistoryPath();
-                    Server.sendResponseMessage(responsePath, hstry, 201);
+                    String hstry = "";
+                    List<Message> usersList = ms.getByUserId(id);
+                    for (Message mesg: usersList) {
+                        hstry += dateFormat.format(mesg.getTm()) + ": " + mesg.getMessage() + '\n';
+                    }
+                    Server.sendResponseMessage(responsePath, login, hstry, 201);
                 } else {
-                    Server.sendResponseMessage(responsePath, MessageConstants.CONNECTION_FAILED_INFO, 410);
+                    Server.sendResponseMessage(responsePath, login, MessageConstants.CONNECTION_FAILED_INFO, 410);
                 }
             } else {
-                Server.sendResponseMessage(responsePath, MessageConstants.CONNECTION_FAILED_INFO, 410);
+                Server.sendResponseMessage(responsePath, login, MessageConstants.CONNECTION_FAILED_INFO, 410);
             }
     }
     /**
