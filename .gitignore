@@ -49,6 +49,8 @@
 
 # IntelliJ
 out/
+target/
+src/resources/connections
 
 # mpeltonen/sbt-idea plugin
 .idea_modules/
